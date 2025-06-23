@@ -47,6 +47,9 @@ ai-meeting-minutes-generator/
     ├── package.json
     └── uploads/       # Temp audio files (auto-cleaned)
 
+```plaintext
+
+---
 
 ## ⚙️ Local Setup
 # ✅ Prerequisites
