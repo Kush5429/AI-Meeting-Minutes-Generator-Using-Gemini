@@ -203,7 +203,12 @@ app.post('/api/minutes/send-email', async (req, res) => {
   }
 });
 
-// ✅ Health Check
+// ✅ Health Check Route (for Render)
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
+
+// ✅ Root route
 app.get('/', (req, res) => {
   res.send('✅ AI Meeting Minutes Backend is running!');
 });
