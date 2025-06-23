@@ -12,45 +12,43 @@ const port = process.env.PORT || 5001;
 
 // ✅ CORS
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',  // allow your frontend domain
+  origin: process.env.FRONTEND_URL || '*',
   methods: ['GET', 'POST'],
-}));
-
 }));
 app.use(express.json());
 
-// ✅ Multer
+// ✅ Multer config
 const upload = multer({
   dest: 'uploads/',
-  limits: { fileSize: 25 * 1024 * 1024 },
+  limits: { fileSize: 25 * 1024 * 1024 }, // 25 MB max
 });
 
-// ✅ Gemini
+// ✅ Gemini setup
 const geminiApiKey = process.env.GEMINI_API_KEY;
 if (!geminiApiKey) {
-  console.error("❌ GEMINI_API_KEY missing");
+  console.error("❌ GEMINI_API_KEY is missing. Please add it to your Render Environment Variables.");
   process.exit(1);
 }
 const genAI = new GoogleGenerativeAI(geminiApiKey);
 const geminiModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-// ✅ AssemblyAI
+// ✅ AssemblyAI setup
 const assemblyApiKey = process.env.ASSEMBLYAI_API_KEY;
 if (!assemblyApiKey) {
-  console.error("❌ ASSEMBLYAI_API_KEY missing");
+  console.error("❌ ASSEMBLYAI_API_KEY is missing. Please add it to your Render Environment Variables.");
   process.exit(1);
 }
 
-// ✅ Nodemailer
+// ✅ Nodemailer setup
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS, // 👉 This must be a Gmail App Password
+    pass: process.env.EMAIL_PASS, // Use an App Password, not your Gmail login password!
   },
 });
 
-// ✅ Gemini output formatter
+// ✅ Gemini output parser
 function formatGeminiOutput(text) {
   try {
     text = text.trim();
@@ -59,7 +57,6 @@ function formatGeminiOutput(text) {
     }
     return JSON.parse(text);
   } catch {
-    // fallback parsing
     const sections = {
       Attendees: "Attendees:",
       DecisionsMade: "Decisions Made:",
@@ -76,7 +73,9 @@ function formatGeminiOutput(text) {
         let endIdx = text.length;
         for (const nextKey of nextKeys) {
           const nextIdx = text.indexOf(sections[nextKey], startIdx);
-          if (nextIdx !== -1 && nextIdx < endIdx) endIdx = nextIdx;
+          if (nextIdx !== -1 && nextIdx < endIdx) {
+            endIdx = nextIdx;
+          }
         }
         const content = text.substring(startIdx, endIdx).trim();
         minutes[key] = content.split('\n').map(l => l.replace(/^[\s\d*-]+\s*/, '').trim()).filter(Boolean);
@@ -86,7 +85,7 @@ function formatGeminiOutput(text) {
   }
 }
 
-// ✅ AssemblyAI Transcriber
+// ✅ AssemblyAI helper
 async function transcribeWithAssemblyAI(filePath) {
   const fileData = fs.readFileSync(filePath);
 
@@ -103,7 +102,7 @@ async function transcribeWithAssemblyAI(filePath) {
   );
   const audioUrl = uploadRes.data.upload_url;
 
-  // Transcribe
+  // Request transcription
   const transcriptRes = await axios.post(
     'https://api.assemblyai.com/v2/transcript',
     { audio_url: audioUrl },
@@ -111,7 +110,7 @@ async function transcribeWithAssemblyAI(filePath) {
   );
   const transcriptId = transcriptRes.data.id;
 
-  // Poll
+  // Poll until done
   let status = 'processing';
   let text = '';
   while (status === 'processing' || status === 'queued') {
@@ -121,23 +120,29 @@ async function transcribeWithAssemblyAI(filePath) {
       { headers: { authorization: assemblyApiKey } }
     );
     status = pollingRes.data.status;
-    if (status === 'completed') text = pollingRes.data.text;
-    if (status === 'failed') throw new Error(pollingRes.data.error);
+    if (status === 'completed') {
+      text = pollingRes.data.text;
+    } else if (status === 'failed') {
+      throw new Error(pollingRes.data.error);
+    }
   }
+
   return text;
 }
 
-// ✅ Generate route
+// ✅ Generate Minutes Route
 app.post('/api/minutes/generate', upload.single('audio'), async (req, res) => {
   try {
     let transcript = '';
+
     if (req.file) {
+      console.log(`Received audio file: ${req.file.path}`);
       transcript = await transcribeWithAssemblyAI(req.file.path);
       fs.unlink(req.file.path, () => {});
     } else if (req.body.transcript) {
       transcript = req.body.transcript;
     } else {
-      return res.status(400).json({ error: "No audio or transcript provided." });
+      return res.status(400).json({ error: "No audio file or transcript provided." });
     }
 
     const prompt = `
@@ -150,26 +155,26 @@ Respond only with valid JSON. No markdown.
   "actionItems": []
 }
 
-Transcript:
+Meeting Transcript:
 ${transcript}
 `;
 
     const result = await geminiModel.generateContent(prompt);
     const geminiText = result.response.text();
     const minutes = formatGeminiOutput(geminiText);
-    res.status(200).json({ minutes });
 
+    res.status(200).json({ minutes });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message || "Failed to generate minutes." });
   }
 });
 
-// ✅ Email route
+// ✅ Send Email Route
 app.post('/api/minutes/send-email', async (req, res) => {
   const { recipients, minutes } = req.body;
   if (!recipients || !minutes) {
-    return res.status(400).json({ error: "Recipients & minutes required." });
+    return res.status(400).json({ error: "Recipients and minutes are required." });
   }
 
   try {
@@ -189,18 +194,18 @@ app.post('/api/minutes/send-email', async (req, res) => {
     });
 
     res.status(200).json({ message: "Email sent successfully." });
-
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to send email." });
   }
 });
 
-// ✅ Health check
+// ✅ Health Check
 app.get('/', (req, res) => {
   res.send('✅ AI Meeting Minutes Backend is running!');
 });
 
+// ✅ Start server
 app.listen(port, () => {
   console.log(`✅ Server listening at http://localhost:${port}`);
 });
