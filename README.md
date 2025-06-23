@@ -170,16 +170,16 @@ npm run dev
 
 
 ### 🎉 Home Page
-![Home Page](./frontend/public/screenshots/homepage.png)
+![Home Page](./frontend/homepage.png)
 
 ### 🔼 Upload Audio
-![Upload Audio](./frontend/public/screenshots/upload.png)
+![Upload Audio](./frontend/audio.png)
 
 ### 📄 Generated Minutes
-![Generated Minutes](./frontend/public/screenshots/minutes.png)
+![Generated Minutes](./frontend/minutes.png)
 
 ### 📄 Generated Results
-![Generated Results](./frontend/public/screenshots/minutes.png)
+![Generated Results](./frontend/minutes.png)
 
 
 
