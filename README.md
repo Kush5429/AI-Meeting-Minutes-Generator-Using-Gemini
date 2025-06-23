@@ -178,7 +178,7 @@ npm run dev
 ### 📄 Generated Minutes
 ![Generated Minutes](./frontend/minutes.png)
 
-### 📄 Generated Email
+### 📄 Shared To Email
 ![Generated Results](./frontend/emailsent.png)
 
 ### 📄 Received Email
