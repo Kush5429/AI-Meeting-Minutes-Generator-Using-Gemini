@@ -10,11 +10,23 @@ const nodemailer = require('nodemailer');
 const app = express();
 const port = process.env.PORT || 5001;
 
-// ✅ CORS
+// ✅ SAFELY resolve allowed origin for CORS:
+const allowedOrigin = process.env.FRONTEND_URL?.trim() || '*';
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
+  origin: (origin, callback) => {
+    // allow requests with no origin (like mobile apps, curl, Postman)
+    if (!origin) return callback(null, true);
+    // allow if matches FRONTEND_URL or wildcard
+    if (allowedOrigin === '*' || origin === allowedOrigin) {
+      return callback(null, true);
+    }
+    // else reject
+    return callback(new Error(`CORS: ${origin} not allowed`));
+  },
   methods: ['GET', 'POST'],
 }));
+
 app.use(express.json());
 
 // ✅ Multer config
