@@ -48,14 +48,12 @@ ai-meeting-minutes-generator/
     └── uploads/       # Temp audio files (auto-cleaned)
 
 
-⚙️ Local Setup
-✅ Prerequisites
-Node.js (v18+ recommended)
+## ⚙️ Local Setup
+# ✅ Prerequisites
 
-npm or yarn
-
-Google Gemini API key
-
-AssemblyAI API key (free tier available)
+- **Node.js (v18+ recommended)**
+- **npm or yarn**
+- **Google Gemini API key**
+- **AssemblyAI API key (free tier available)**
 
 
